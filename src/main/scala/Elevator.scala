@@ -1,60 +1,67 @@
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.AbstractBehavior
+import akka.actor.typed.scaladsl.StashBuffer
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.LoggerOps
-import akka.actor.typed.Signal
-import akka.actor.typed.PostStop
+import akka.actor.typed.scaladsl.TimerScheduler
+import scala.concurrent.duration._
 
 object Elevator {
-    def apply(elevatorID: Int): Behavior[ElevatorMessage] =
-        Behaviors.setup(context => new Elevator(context, elevatorID))
+    sealed trait Command
+    private case object Timeout extends Command
+    final case class CallElevator(floorID: Int) extends Command
+    final case class FloorReached(floorID: Int)
     
-    sealed trait ElevatorMessage
-    final case class FloorButtonPressed(floorID: Int)    extends ElevatorMessage
-    final case class ElevatorButtonPressed(floorID: Int) extends ElevatorMessage
+    def apply(elevatorID: Int): Behavior[Command] = {
+        Behaviors.withStash(100) { buffer =>
+            Behaviors.setup[Command] { context =>
+                new Elevator(context, buffer, elevatorID).start
+            }
+        }
+    }
 }
 
-class Elevator(context: ActorContext[Elevator.ElevatorMessage], elevatorID: Int) extends AbstractBehavior[Elevator.ElevatorMessage](context) {
-
-    var currentFloor: Int = 0
+class Elevator(
+    context: ActorContext[Elevator.Command],
+    buffer: StashBuffer[Elevator.Command],
+    elevatorID: Int) {
+    
     val timePerFloor: Int = 1000*5
+    var currentFloor: Int = 0
 
-    override def onMessage(msg: Elevator.ElevatorMessage): Behavior[Elevator.ElevatorMessage] = {
-        msg match {
-            case Elevator.FloorButtonPressed(floorID: Int) =>
-                context.log.info(s"Elevator $elevatorID received request to go to floor $floorID")
-                val result = moveElevator(floorID)
-                context.log.info(s"Elevator $elevatorID reaches floor $floorID")
-                Behaviors.same
-            
-            case Elevator.ElevatorButtonPressed(floorID: Int)  => 
-                context.log.info(s"Elevator $elevatorID received request to go to floor $floorID")
-                val result = moveElevator(floorID)
-                context.log.info(s"Elevator $elevatorID reaches floor $floorID")
-                Behaviors.same
+    private def start: Behavior[Elevator.Command] = idle
+
+    private def idle: Behavior[Elevator.Command] = {
+        Behaviors.withTimers[Elevator.Command] { timers =>
+            timers.startSingleTimer(Elevator.Timeout, 10.seconds)
+            context.log.info(s"[Elevator $elevatorID]: Doors opened!")
+            Behaviors.receiveMessage {
+                case Elevator.CallElevator(floor) =>
+                    context.log.info(s"[Elevator $elevatorID]: received CallElevator to floor $floor")
+                    Behaviors.same
+                
+                case Elevator.Timeout =>
+                    context.log.info(s"[Elevator $elevatorID]: Doors closed!")
+                    timers.cancel(Elevator.Timeout)
+                    Behaviors.same
+            }
         }
     }
 
-    override def onSignal: PartialFunction[akka.actor.typed.Signal, Behavior[Elevator.ElevatorMessage]] = {
-        case akka.actor.typed.PostStop =>
-            context.log.info(s"Elevator $elevatorID stopped")
-            this
-    }
-
-    private def moveElevator(floorNumber: Int): String = {
+    private def travelToFloor(floorNumber: Int): Unit = {
         if (currentFloor < floorNumber) {
             while (currentFloor < floorNumber) {
-                currentFloor += 1
                 Thread.sleep(timePerFloor)
+                currentFloor += 1
             }
-        } else 
+        } 
+        else 
         if (currentFloor > floorNumber) {
             while (currentFloor > floorNumber) {
                 currentFloor -= 1
                 Thread.sleep(timePerFloor)
             }
         }
-        "Arrived"
+
     }
 }
