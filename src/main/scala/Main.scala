@@ -23,8 +23,11 @@ object Main extends App {
         System.exit(1)
     }
 
-    val system: ActorSystem[Building.StartBuilding] = ActorSystem(Building(), "building")
+    val system: ActorSystem[Building.BuildingMessage] = ActorSystem(Building(), "building")
     system ! Building.StartBuilding(elevatorsNum, floorsNum, passengersNum)
+    system ! Building.ActivateElevators
+
+    Thread.sleep(1000*60)
 
     def toInt(s: String): Try[Int] = Try(Integer.parseInt(s.trim))
 }

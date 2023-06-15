@@ -3,32 +3,27 @@ import akka.actor.typed.scaladsl.AbstractBehavior
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.LoggerOps
+import akka.actor.typed.Signal
+import akka.actor.typed.PostStop
 
 object Floor {
-    def apply(floorId: Int): Behavior[FloorMessage] =
-        Behaviors.setup(context => new Floor(context, floorId))
-    
-    sealed trait FloorMessage
-    final case class ElevatorArrived(elevatorID: Int)  extends FloorMessage
-    final case class ElevatorDeparted(elevatorID: Int) extends FloorMessage
-}
+    sealed trait Command
+    final case class FloorReached(elevatorID: Int)       extends Command
 
-class Floor(context: ActorContext[Floor.FloorMessage], floorId: Int) extends AbstractBehavior[Floor.FloorMessage](context) {
-    override def onMessage(msg: Floor.FloorMessage): Behavior[Floor.FloorMessage] = {
-        msg match {
-            case Floor.ElevatorArrived(elevatorID: Int) =>
-                context.log.info(s"Elevator $elevatorID arrived at Floor $floorId")
-                Behaviors.same
-            
-            case Floor.ElevatorDeparted(elevatorID: Int)  => 
-                context.log.info(s"Elevator $elevatorID departed from Floor $floorId")
-                Behaviors.stopped
+    def apply(floorID: Int): Behavior[Command] = {
+        Behaviors.setup[Command] { context =>
+            new Floor(context, floorID).start
         }
     }
+}
 
-    override def onSignal: PartialFunction[akka.actor.typed.Signal, Behavior[Floor.FloorMessage]] = {
-        case akka.actor.typed.PostStop =>
-            context.log.info(s"Floor $floorId stopped")
-            this
+class Floor(context: ActorContext[Floor.Command], floorID: Int) {
+
+    private def start: Behavior[Floor.Command] = {
+        Behaviors.receiveMessage {
+            case Floor.FloorReached(elevatorID) =>
+                context.log.info(s"[Floor $floorID]: Elevator $elevatorID reached")
+                Behaviors.same
+        }
     }
 }
