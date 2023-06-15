@@ -77,7 +77,7 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
 
                     floorCallRequests.find { case (floor, _) => floor == currentFloor } match {
                         case Some((_, targetActorRef)) =>
-                            targetActorRef ! Floor.FloorReached(currentFloor)
+                            targetActorRef ! Floor.FloorReached(elevatorID)
                         case None =>
                             throw new NoSuchElementException(s"No actor reference found for floor $currentFloor")
                     }
