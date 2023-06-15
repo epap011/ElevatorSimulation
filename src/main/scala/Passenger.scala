@@ -11,33 +11,40 @@ import scala.util.Random
 object Passenger {
     sealed trait Command
     private case object Timeout extends Command
+    final case class CallElevator(floorID: Int, replyTo: ActorRef[Passenger.Command]) extends Command
 
-    def apply(passengerID: Int, maxFloors: Int): Behavior[Command] = {
+    def apply(passengerID: Int, maxFloors: Int, floorZeroActor: ActorRef[Floor.Command]): Behavior[Command] = {
         Behaviors.setup[Command] { context =>
-            new Passenger(context, passengerID, maxFloors).thinking 
+            new Passenger(context, passengerID, maxFloors, floorZeroActor).thinking 
         }
     }
 }
 
-class Passenger(context: ActorContext[Passenger.Command], passengerID: Int, maxFloors: Int) {
+class Passenger(
+    context: ActorContext[Passenger.Command], 
+    passengerID: Int, 
+    maxFloors: Int,
+    floorZeroActor: ActorRef[Floor.Command]) {
 
     val maxThinkTime: FiniteDuration = 10.seconds
-    var decide_floor: Int = -1
+    var currentFloorActor: ActorRef[Floor.Command] = floorZeroActor
 
     private def thinking: Behavior[Passenger.Command] = {
-        context.log.info(s"[Passenger $passengerID]: thinking..")
+        context.log.info(s"[Passenger $passengerID]: Thinking")
         Behaviors.withTimers[Passenger.Command] { timers =>
             timers.startSingleTimer(Passenger.Timeout, think_time)
             Behaviors.receiveMessage {
                 case Passenger.Timeout =>
-                    decide_floor = Random.nextInt(maxFloors)
-                    context.log.info(s"[Passenger $passengerID]: decided to go to floor ${decide_floor}")
+                    val decidedFloor = Random.nextInt(maxFloors)
+                    context.log.info(s"[Passenger $passengerID]: decided to go to floor $decidedFloor")
+                    currentFloorActor ! Floor.CallElevator(decidedFloor, context.self)
                     waiting
             }
         }   
     }
 
     private def waiting: Behavior[Passenger.Command] = {
+        context.log.info(s"[Passenger $passengerID]: Waiting")
         Behaviors.same
     }
 

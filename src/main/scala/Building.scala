@@ -5,6 +5,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.LoggerOps
 import akka.actor.typed.Signal
 import akka.actor.typed.PostStop
+import akka.actor.typed.ActorRef
 
 object Building {
     def apply(): Behavior[BuildingMessage] =
@@ -19,30 +20,37 @@ class Building(context: ActorContext[Building.BuildingMessage]) extends Abstract
     val elevatorsNum  :Int = 0
     val floorsNum     :Int = 0
     val passengersNum :Int = 0
-    var elevatorActors:Seq[akka.actor.typed.ActorRef[Elevator.Command]] = Seq.empty
-    var floorActors   :Seq[akka.actor.typed.ActorRef[Floor.Command]] = Seq.empty
-    var passengerActors:Seq[akka.actor.typed.ActorRef[Passenger.Command]] = Seq.empty
+    var elevatorActors:Seq[ActorRef[Elevator.Command]] = Seq.empty
+    var floorActors   :Seq[ActorRef[Floor.Command]] = Seq.empty
+    var passengerActors:Seq[ActorRef[Passenger.Command]] = Seq.empty
 
     override def onMessage(msg: Building.BuildingMessage): Behavior[Building.BuildingMessage] = {
         msg match {
-            case Building.StartBuilding(elevatorsNum, floorsNum, passengersNum) => 
-                floorActors = (1 to floorsNum).map { floorId =>
-                    context.spawn(Floor(floorId), s"floor-$floorId")
-                }
+            case Building.StartBuilding(elevatorsNum, floorsNum, passengersNum) =>
                 elevatorActors = (1 to elevatorsNum).map { elevatorId =>
                     context.spawn(Elevator(elevatorId), s"elevator-$elevatorId")
                 }
-                passengerActors = (1 to passengersNum).map { passengerId =>
-                    context.spawn(Passenger(passengerId, floorsNum), s"passenger-$passengerId")
+                floorActors = (0 to floorsNum-1).map { floorId =>
+                    context.spawn(Floor(floorId, elevatorActors), s"floor-$floorId")
                 }
+                val floorActorOpt = floorActors.find(_.path.name.endsWith(s"floor-0"))
+                floorActorOpt match {
+                    case Some(floorActor) =>
+                        passengerActors = (1 to passengersNum).map { passengerId =>
+                            context.spawn(Passenger(passengerId, floorsNum, floorActor), s"passenger-$passengerId")
+                        }
+                    case None =>
+                        context.log.error("Unreachable: Floor 0 not found")
+                }
+
                 Behaviors.same
             
             case Building.ActivateElevators =>
-                context.log.info("Activating elevators..")
-                elevatorActors.foreach { elevatorActor =>
-                    elevatorActor ! Elevator.CallElevator(1, floorActors(0))
-                    elevatorActor ! Elevator.CallElevator(5, floorActors(4))
-                }
+                // context.log.info("Activating elevators..")
+                // elevatorActors.foreach { elevatorActor =>
+                //     elevatorActor ! Elevator.CallElevator(2, floorActors(2))
+                //     elevatorActor ! Elevator.CallElevator(4, floorActors(4))
+                // }
                 Behaviors.same
         }
     }
