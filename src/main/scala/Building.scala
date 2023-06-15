@@ -21,7 +21,7 @@ class Building(context: ActorContext[Building.BuildingMessage]) extends Abstract
     val passengersNum :Int = 0
     var elevatorActors:Seq[akka.actor.typed.ActorRef[Elevator.Command]] = Seq.empty
     var floorActors   :Seq[akka.actor.typed.ActorRef[Floor.Command]] = Seq.empty
-    // var passengerActors:Seq[akka.actor.typed.ActorRef[Passenger.PassengerMessage]] = Seq.empty
+    var passengerActors:Seq[akka.actor.typed.ActorRef[Passenger.Command]] = Seq.empty
 
     override def onMessage(msg: Building.BuildingMessage): Behavior[Building.BuildingMessage] = {
         msg match {
@@ -32,9 +32,9 @@ class Building(context: ActorContext[Building.BuildingMessage]) extends Abstract
                 elevatorActors = (1 to elevatorsNum).map { elevatorId =>
                     context.spawn(Elevator(elevatorId), s"elevator-$elevatorId")
                 }
-                // val passengerActors = (1 to passengersNum).map { passengerId =>
-                //     context.spawn(Passenger(passengerId), s"passenger-$passengerId")
-                // }
+                passengerActors = (1 to passengersNum).map { passengerId =>
+                    context.spawn(Passenger(passengerId, floorsNum), s"passenger-$passengerId")
+                }
                 Behaviors.same
             
             case Building.ActivateElevators =>
