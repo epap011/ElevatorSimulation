@@ -27,7 +27,7 @@ class Passenger(
     maxFloors: Int,
     floorZeroActor: ActorRef[Floor.Command]) {
 
-    val maxThinkTime: FiniteDuration = 10.seconds
+    val maxThinkTime: FiniteDuration = 60.minutes
     var currentFloorActor: ActorRef[Floor.Command] = floorZeroActor
 
     private def thinking: Behavior[Passenger.Command] = {
@@ -40,6 +40,8 @@ class Passenger(
                     context.log.info(s"[Passenger $passengerID]: decided to go to floor $decidedFloor")
                     currentFloorActor ! Floor.CallElevator(decidedFloor, context.self)
                     waiting
+                
+                case _ => Behaviors.same
             }
         }   
     }
@@ -51,6 +53,8 @@ class Passenger(
                 context.log.info(s"[Passenger $passengerID]: i reached my destination ${arrivedFloor.path.name}")
                 currentFloorActor = arrivedFloor
                 thinking
+            
+            case _ => Behaviors.same
         }
     }
 

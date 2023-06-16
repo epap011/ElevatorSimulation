@@ -25,7 +25,7 @@ object Elevator {
 }
 
 class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
-    val timePerFloor: Int = 1
+    val timePerFloor: Int = 60 //seconds
     var currentFloor: (Int, ActorRef[Floor.Command]) = null
 
     var floorCallRequests     = SortedSet[(Int, ActorRef[Floor.Command])]()
@@ -44,13 +44,15 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
                 travelling
             
             case Elevator.Timeout => Behaviors.same
+
+            case _ => Behaviors.same
         }
     }
 
     private def waiting: Behavior[Elevator.Command] = {
         context.log.info(s"[Elevator $elevatorID]: <Waiting> at floor ${currentFloor._1}")
         Behaviors.withTimers[Elevator.Command] { timers =>
-            timers.startSingleTimer(Elevator.Timeout, 10.seconds)
+            timers.startSingleTimer(Elevator.Timeout, 1.minutes)
             Behaviors.receiveMessage {
                 case Elevator.PassengerEntered(floorToGo, replyTo) =>
                     context.log.info(s"[Elevator $elevatorID]: received a passenger with desination floor $floorToGo")
@@ -70,6 +72,8 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
                         currentFloor._2 ! Floor.Departure(elevatorID)
                         travelling
                     }
+                
+                case _ => Behaviors.same
             }
         }
     }
@@ -103,6 +107,8 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
                     }
                     
                     waiting
+                
+                case _ => Behaviors.same
             }
         }
     }
@@ -120,6 +126,8 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
                 this.floors = floors
                 currentFloor = (0, floors.head)
                 idle
+            
+            case _ => Behaviors.same
         }
     }
 }
