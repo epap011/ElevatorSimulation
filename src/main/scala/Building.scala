@@ -33,6 +33,9 @@ class Building(context: ActorContext[Building.BuildingMessage]) extends Abstract
                 floorActors = (0 to floorsNum-1).map { floorId =>
                     context.spawn(Floor(floorId, elevatorActors), s"floor-$floorId")
                 }
+                for(elevator <- elevatorActors) {
+                    elevator ! Elevator.SetFloors(floorActors)
+                }
                 val floorActorOpt = floorActors.find(_.path.name.endsWith(s"floor-0"))
                 floorActorOpt match {
                     case Some(floorActor) =>

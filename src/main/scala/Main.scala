@@ -28,6 +28,7 @@ object Main extends App {
     system ! Building.ActivateElevators
 
     Thread.sleep(1000*60)
+    system.terminate()
 
     def toInt(s: String): Try[Int] = Try(Integer.parseInt(s.trim))
 }

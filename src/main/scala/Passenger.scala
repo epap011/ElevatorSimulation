@@ -12,6 +12,7 @@ object Passenger {
     sealed trait Command
     private case object Timeout extends Command
     final case class CallElevator(floorID: Int, replyTo: ActorRef[Passenger.Command]) extends Command
+    final case class Arrived(arrivedFloor: ActorRef[Floor.Command]) extends Command
 
     def apply(passengerID: Int, maxFloors: Int, floorZeroActor: ActorRef[Floor.Command]): Behavior[Command] = {
         Behaviors.setup[Command] { context =>
@@ -45,7 +46,12 @@ class Passenger(
 
     private def waiting: Behavior[Passenger.Command] = {
         context.log.info(s"[Passenger $passengerID]: Waiting")
-        Behaviors.same
+        Behaviors.receiveMessage {
+            case Passenger.Arrived(arrivedFloor) =>
+                context.log.info(s"[Passenger $passengerID]: Elevator arrived")
+                currentFloorActor = arrivedFloor
+                thinking
+        }
     }
 
     private def think_time: FiniteDuration = {

@@ -23,8 +23,8 @@ class Floor(
     floorID: Int,
     elevatorActors: Seq[ActorRef[Elevator.Command]]) {
 
-    var arrivedElevators:  Seq[ActorRef[Elevator.PassengerEntered]]  = Seq()
-    var waitingPassengers: Seq[ActorRef[Passenger.Command]] = Seq()
+    var arrivedElevators:  Seq[ActorRef[Elevator.PassengerEntered]] = Seq()
+    var waitingPassengers: Seq[(Int, ActorRef[Passenger.Command])]  = Seq()
 
     private def start: Behavior[Floor.Command] = {
         Behaviors.receiveMessage {
@@ -32,7 +32,7 @@ class Floor(
                 context.log.info(s"[Floor $floorID]: Elevator $elevatorID reached")
                 arrivedElevators = arrivedElevators :+ replyTo
                 for(passenger <- waitingPassengers) {
-                    replyTo ! Elevator.PassengerEntered(passenger)
+                    replyTo ! Elevator.PassengerEntered(passenger._1, passenger._2)
                 }
                 waitingPassengers = Seq()
                 Behaviors.same
@@ -44,14 +44,14 @@ class Floor(
             
             case Floor.CallElevator(floorIDToGo, replyTo) =>
                 context.log.info(s"[Floor $floorID]: passenger called elevator to go to floor $floorIDToGo")
-                waitingPassengers = waitingPassengers :+ replyTo
-                if(!arrivedElevators.isEmpty) {
-                    arrivedElevators.head ! Elevator.PassengerEntered(waitingPassengers.head)
+                waitingPassengers = waitingPassengers :+ ((floorIDToGo, replyTo))
+                if(arrivedElevators.nonEmpty) {
+                    arrivedElevators.head ! Elevator.PassengerEntered(floorIDToGo, replyTo)
                     waitingPassengers = waitingPassengers.tail
                 }
                 else {
                     for(elevator <- elevatorActors) {
-                        elevator ! Elevator.CallElevator(floorIDToGo, context.self)
+                        elevator ! Elevator.CallElevator(floorID, context.self)
                     }
                 }
                 Behaviors.same
