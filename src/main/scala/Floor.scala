@@ -29,7 +29,7 @@ class Floor(
     private def start: Behavior[Floor.Command] = {
         Behaviors.receiveMessage {
             case Floor.FloorReached(elevatorID, replyTo) =>
-                context.log.info(s"[Floor $floorID]: Elevator $elevatorID reached")
+                context.log.info(s"[Floor $floorID]: Elevator $elevatorID Arrived")
                 arrivedElevators = arrivedElevators :+ replyTo
                 for(passenger <- waitingPassengers) {
                     replyTo ! Elevator.PassengerEntered(passenger._1, passenger._2)
@@ -38,7 +38,7 @@ class Floor(
                 Behaviors.same
             
             case Floor.Departure(elevatorID) =>
-                context.log.info(s"[Floor $floorID]: Elevator $elevatorID departed")
+                context.log.info(s"[Floor $floorID]: Elevator $elevatorID Departed")
                 //arrivedElevators = arrivedElevators.filterNot(_ == context.sender)
                 Behaviors.same
             

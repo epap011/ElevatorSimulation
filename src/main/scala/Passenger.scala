@@ -31,7 +31,7 @@ class Passenger(
     var currentFloorActor: ActorRef[Floor.Command] = floorZeroActor
 
     private def thinking: Behavior[Passenger.Command] = {
-        context.log.info(s"[Passenger $passengerID]: Thinking")
+        context.log.info(s"[Passenger $passengerID]: <Thinking>")
         Behaviors.withTimers[Passenger.Command] { timers =>
             timers.startSingleTimer(Passenger.Timeout, think_time)
             Behaviors.receiveMessage {
@@ -45,10 +45,10 @@ class Passenger(
     }
 
     private def waiting: Behavior[Passenger.Command] = {
-        context.log.info(s"[Passenger $passengerID]: Waiting")
+        context.log.info(s"[Passenger $passengerID]: <Waiting>")
         Behaviors.receiveMessage {
             case Passenger.Arrived(arrivedFloor) =>
-                context.log.info(s"[Passenger $passengerID]: Elevator arrived")
+                context.log.info(s"[Passenger $passengerID]: i reached my destination ${arrivedFloor.path.name}")
                 currentFloorActor = arrivedFloor
                 thinking
         }

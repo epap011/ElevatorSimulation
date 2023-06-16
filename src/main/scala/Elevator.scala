@@ -36,10 +36,10 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
     private def start: Behavior[Elevator.Command] = setFloors
 
     private def idle: Behavior[Elevator.Command] = {
-        context.log.info(s"[Elevator $elevatorID]: Idle at floor ${currentFloor._1}")
+        context.log.info(s"[Elevator $elevatorID]: <Idle>")
         Behaviors.receiveMessage {
             case Elevator.CallElevator(floor, replyTo) =>
-                context.log.info(s"[Elevator $elevatorID]: received CallElevator to floor $floor")
+                context.log.info(s"[Elevator $elevatorID]: floor $floor called me")
                 floorCallRequests += ((floor, replyTo))
                 travelling
             
@@ -48,18 +48,18 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
     }
 
     private def waiting: Behavior[Elevator.Command] = {
-        context.log.info(s"[Elevator $elevatorID]: Waiting at floor ${currentFloor._1}")
+        context.log.info(s"[Elevator $elevatorID]: <Waiting> at floor ${currentFloor._1}")
         Behaviors.withTimers[Elevator.Command] { timers =>
             timers.startSingleTimer(Elevator.Timeout, 10.seconds)
             Behaviors.receiveMessage {
                 case Elevator.PassengerEntered(floorToGo, replyTo) =>
-                    context.log.info(s"[Elevator $elevatorID]: received PassengerEntered to floor $floorToGo")
+                    context.log.info(s"[Elevator $elevatorID]: received a passenger with desination floor $floorToGo")
                     passengerCallRequests += ((floorToGo, replyTo))
                     passengerList = passengerList :+ ((floorToGo, replyTo))
                     Behaviors.same
 
                 case Elevator.CallElevator(floor, replyTo) =>
-                    context.log.info(s"[Elevator $elevatorID]: received CallElevator to floor $floor")
+                    context.log.info(s"[Elevator $elevatorID]: floor $floor called me")
                     floorCallRequests += ((floor, replyTo))
                     Behaviors.same
                 
@@ -74,7 +74,7 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
     private def travelling: Behavior[Elevator.Command] = {
         Behaviors.withTimers[Elevator.Command] { timers =>
             val nextFloor = nextFloorByPolicy
-            context.log.info(s"[Elevator $elevatorID]: Travelling to floor $nextFloor")
+            context.log.info(s"[Elevator $elevatorID]: <Travelling> from floor ${ currentFloor._1} to $nextFloor")
             var timeToNextFloor: Int = 0
             timeToNextFloor = Math.abs(nextFloor - currentFloor._1) * timePerFloor
             timers.startSingleTimer(Elevator.Timeout, timeToNextFloor.seconds)
@@ -82,7 +82,7 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
             
             Behaviors.receiveMessage {
                 case Elevator.CallElevator(floor, replyTo) =>
-                    context.log.info(s"[Elevator $elevatorID]: received CallElevator to floor $floor")
+                    context.log.info(s"[Elevator $elevatorID]: floor $floor called me")
                     floorCallRequests += ((floor, replyTo))
                     Behaviors.same
                 
