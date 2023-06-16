@@ -66,7 +66,10 @@ class Elevator(context: ActorContext[Elevator.Command], elevatorID: Int) {
                 case Elevator.Timeout =>
                     timers.cancel(Elevator.Timeout)
                     if(floorCallRequests.isEmpty && passengerCallRequests.isEmpty) idle
-                    else  travelling
+                    else {
+                        currentFloor._2 ! Floor.Departure(elevatorID)
+                        travelling
+                    }
             }
         }
     }
