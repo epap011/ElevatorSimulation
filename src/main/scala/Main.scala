@@ -27,7 +27,7 @@ object Main extends App {
     system ! Building.StartBuilding(elevatorsNum, floorsNum, passengersNum)
     system ! Building.ActivateElevators
 
-    Thread.sleep(1000*60)
+    Thread.sleep(1000*60*7200)
     system.terminate()
 
     def toInt(s: String): Try[Int] = Try(Integer.parseInt(s.trim))
